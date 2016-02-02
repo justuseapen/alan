@@ -4,6 +4,8 @@ var bodyParser = require('body-parser');
 var http = require('http');
 var morgan      = require('morgan');
 var mongoose    = require('mongoose');
+var cookieParser = require('cookie-parser');
+var uuid = require('node-uuid');
 
 var jwt    = require('jsonwebtoken'); // used to create, sign, and verify tokens
 var config = require('./config'); // get our config file
@@ -12,9 +14,12 @@ var User   = require('./app/models/user'); // get our mongoose model
 // Models
 var Conversation     = require('./app/models/conversation.js');
 var User     = require('./app/models/user.js');
+var Message = require('./app/models/message.js');
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
+app.use(cookieParser());
+app.use(morgan('dev'));
 
 var port = process.env.PORT || 8080; // used to create, sign, and verify tokens
 mongoose.connect(config.database); // connect to database
@@ -27,6 +32,7 @@ router.get('/', function(req, res) {
     console.log(req);
 });
 
+// POST Conversation
 router.post('/conversation', function(req,res){
 	// conversation: {
 	// 	uid: "random hash"
@@ -35,20 +41,50 @@ router.post('/conversation', function(req,res){
 	// Only Alan receives real participant tokens.
 	// Competition AI's receive randomly generated participate-conversation tokens
 
-	var conversation_uid = req.query.conversation_uid
-	var participant_token = req.query.participant_token
+	// Create conversation and set uid
+	var conversation = new Conversation()
+	console.log(req)
+	conversation.uid = req.body.conversation.uid;
 
+	// create user and set id
+	var user = new User();
+	user.uid = req.body.conversation.playerUid;
 
-	var conversation = new Conversation(uid: conversation_uid)
+	// set conversation partner id to form association
+	conversation.partner_id = user.uid
+
+	// Save conversation to db
 	conversation.save(function (err) {
 	  if (err) return handleError(err);
 	  // saved!
 	})
 
-	var nameQuery = 'Hi there! What’s your name?'
+	// Save user to db
+	user.save(function (err) {
+	  if (err) return handleError(err);
+	  // saved!
+	})
+
+	// Create message with name query and conversation association
+	var message = new Message()
+	message.uid = uuid.v1()
+	message.body = 'Hi there! What’s your name?'
+	message.conversationUid = conversation.uid
+	message.partnerUid = 'ALAN'
+
+	// Save message to db
+	message.save(function (err) {
+	  if (err) return handleError(err);
+	  // saved!
+	})
+
+	console.log(message)
 
 	if (!req.query.auth && req.query.name == null) {
-		res.end(nameQuery)
+		res.json({
+			'conversation': conversation, 
+			'lastMessage': message
+		})
 	} else if (!req.query.auth) {
 		var name = req.query.name
 		emailQuery = 'Hi ' + name +  '! I’m Alan. Seems like you\'re not signed in. Can you tell me your email?'
@@ -64,25 +100,10 @@ router.post('/message', function(req, res){
 		var name = req.query.name
 		var message = 'Nice to meet you ' + name +  '. I’m Alan. I’ll be your guide through the Turing Tournament. Now, can you tell me your email address. Don’t worry, I will never spam you.'
 		res.end(message)
-	} else if (){}
+	}
 });
 
-router.post('/email', function(req, res){
-	name = req.query.name
 
-	message = "Great! I just sent you a temporary password. We can edit it later. Now, I’ll teach you how to play the Turing Tournament..."
-});
-
-router.post('/message', function(req, res) {
-		var visitor = req.query.visitor
-		if (newVisitor) {
-			var message = 'Hi there! What’s your name?'
-			res.end(message)
-		} else {
-			var message = req.query.body;
-			var conversation_id = req.query.conversation_id;
-		}
-});
 
 // more routes for our API will happen here
 

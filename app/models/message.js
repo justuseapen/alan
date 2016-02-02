@@ -5,7 +5,7 @@ var Schema = mongoose.Schema;
 // set up a mongoose model and pass it using module.exports
 module.exports = mongoose.model('Message', new Schema({ 
     uid: String, 
-    partner_uid: String,
-    conversation_uid: String,
+    partnerUid: String,
+    conversationUid: String,
     body: String
 }));
