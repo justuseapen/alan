@@ -11,6 +11,8 @@
     "mongoose-findorcreate": "^0.1.2",
     "monk": "~1.0.1",
     "morgan": "^1.6.1",
-    "node-uuid": "^1.4.7"
+    "node-uuid": "^1.4.7",
+    "pb-node": "^2.0.1",
+    "querystring": "^0.2.0"
   }
 }

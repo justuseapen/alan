@@ -6,7 +6,7 @@ var morgan      = require('morgan');
 var mongoose    = require('mongoose');
 var cookieParser = require('cookie-parser');
 var uuid = require('node-uuid');
-
+var querystring = require('querystring');
 var jwt    = require('jsonwebtoken'); // used to create, sign, and verify tokens
 var config = require('./config'); // get our config file
 var User   = require('./app/models/user'); // get our mongoose model
@@ -27,28 +27,68 @@ app.set('superSecret', config.secret); // secret variable
 
 var router = express.Router();
 
+var Pandorabot = require('pb-node');
+var options = {
+  url: 'https://aiaas.pandorabots.com',
+  app_id: "1409612467734",
+  user_key: "ffe4f97ba5105927e685773a028fd4ac",
+  botname: "alan"
+};
+var bot = new Pandorabot(options);
+
+// Turing Options
+var options = {
+  host: 'localhost',
+  port: '3000',
+  path: '/messages',
+  method: 'POST'
+};
+
+// Send Turing messages
+function sendMessage(body, conversationUid){
+	var postData = querystring.stringify({
+	  'message' : body,
+	  'conversation':{
+	  	'uid': conversationUid
+	  }
+	});
+	var req = http.request(options, (res) => {
+	  console.log(`STATUS: ${res.statusCode}`);
+	  console.log(`HEADERS: ${JSON.stringify(res.headers)}`);
+	  res.setEncoding('utf8');
+	  res.on('data', (chunk) => {
+	    console.log(`BODY: ${chunk}`);
+	  });
+	  res.on('end', () => {
+	    console.log('No more data in response.')
+	  })
+	});
+	req.on('error', (e) => {
+	  console.log(`problem with request: ${e.message}`);
+	});
+	req.write(postData);
+	console.log(req)
+	req.end();
+}
+
 // test route to make sure everything is working (accessed at GET http://localhost:8080/api)
 router.get('/', function(req, res) {
     console.log(req);
 });
 
-// POST Conversation
-router.post('/conversation', function(req,res){
-	// conversation: {
-	// 	uid: "random hash"
-	// participant_token: ""
-	// }
-	// Only Alan receives real participant tokens.
-	// Competition AI's receive randomly generated participate-conversation tokens
+function sendNameQuery(conversationUid){
+	var nameQuery = 'Hi there! What’s your name?'
+	sendMessage(nameQuery,conversationUid)
+}
 
+router.post('/conversation', function(req,res){
 	// Create conversation and set uid
 	var conversation = new Conversation()
-	console.log(req)
 	conversation.uid = req.body.conversation.uid;
 
 	// create user and set id
 	var user = new User();
-	user.uid = req.body.conversation.playerUid;
+	user.uid = req.body.partner.uid;
 
 	// set conversation partner id to form association
 	conversation.partner_id = user.uid
@@ -59,38 +99,32 @@ router.post('/conversation', function(req,res){
 	  // saved!
 	})
 
+	console.log(conversation)
+
 	// Save user to db
 	user.save(function (err) {
 	  if (err) return handleError(err);
 	  // saved!
 	})
 
-	// Create message with name query and conversation association
-	var message = new Message()
-	message.uid = uuid.v1()
-	message.body = 'Hi there! What’s your name?'
-	message.conversationUid = conversation.uid
-	message.partnerUid = 'ALAN'
+	console.log(user)
 
-	// Save message to db
-	message.save(function (err) {
-	  if (err) return handleError(err);
-	  // saved!
-	})
+	// // Create message with name query and conversation association
+	// var message = new Message()
+	// message.uid = uuid.v1()
+	// message.body = 'Hi there! What’s your name?'
+	// message.conversationUid = conversation.uid
+	// message.playerUid = 'ALAN'
+	// message.save(function (err) {
+	//   if (err) return handleError(err);
+	//   // saved!
+	// })
 
-	console.log(message)
+	// console.log(message)
 
-	if (!req.query.auth && req.query.name == null) {
-		res.json({
-			'conversation': conversation, 
-			'lastMessage': message
-		})
-	} else if (!req.query.auth) {
-		var name = req.query.name
-		emailQuery = 'Hi ' + name +  '! I’m Alan. Seems like you\'re not signed in. Can you tell me your email?'
-		res.end(emailQuery)
-	} else {
-		var greeting = 'Hi there ' + req.query.name + '! Good to see you again. Are you ready to play?'
+	if (!req.body.authenticated) {
+		res.json(conversation)
+		sendNameQuery()
 	}
 
 });
